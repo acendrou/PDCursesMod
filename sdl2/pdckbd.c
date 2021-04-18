@@ -9,7 +9,7 @@ static SDL_Event event;
 static SDL_Keycode oldkey;
 static MOUSE_STATUS old_mouse_status;
 
-static struct
+static const struct
 {
     SDL_Keycode keycode;
     bool numkeypad;
@@ -69,11 +69,22 @@ static struct
  {SDLK_KP_7,    TRUE,   KEY_A1,      '7',          CTL_PAD7,    ALT_PAD7},
  {SDLK_KP_8,    TRUE,   KEY_A2,      '8',          CTL_PAD8,    ALT_PAD8},
  {SDLK_KP_9,    TRUE,   KEY_A3,      '9',          CTL_PAD9,    ALT_PAD9},
+ {SDLK_VOLUMEUP,  FALSE, KEY_VOLUME_UP, KEY_VOLUME_UP, KEY_VOLUME_UP, KEY_VOLUME_UP},
+ {SDLK_VOLUMEDOWN,  FALSE, KEY_VOLUME_DOWN, KEY_VOLUME_DOWN, KEY_VOLUME_DOWN, KEY_VOLUME_DOWN},
+ {SDLK_MUTE, FALSE, KEY_VOLUME_MUTE, KEY_VOLUME_MUTE, KEY_VOLUME_MUTE, KEY_VOLUME_MUTE},
+ {SDLK_AGAIN, FALSE, KEY_REDO, KEY_REDO, KEY_REDO, KEY_REDO },
+ {SDLK_SCROLLLOCK, FALSE, KEY_SCROLLLOCK, KEY_SCROLLLOCK, KEY_SCROLLLOCK, KEY_SCROLLLOCK },
+ {SDLK_UNDO, FALSE, KEY_UNDO, KEY_UNDO, KEY_UNDO, KEY_UNDO },
+ {SDLK_AUDIONEXT, FALSE, KEY_NEXT_TRACK, KEY_NEXT_TRACK, KEY_NEXT_TRACK, KEY_NEXT_TRACK },
+ {SDLK_AUDIOPREV, FALSE, KEY_PREV_TRACK, KEY_PREV_TRACK, KEY_PREV_TRACK, KEY_PREV_TRACK },
+ {SDLK_AUDIOSTOP, FALSE, KEY_MEDIA_STOP, KEY_MEDIA_STOP, KEY_MEDIA_STOP, KEY_MEDIA_STOP },
+ {SDLK_AUDIOPLAY, FALSE, KEY_PLAY_PAUSE, KEY_PLAY_PAUSE, KEY_PLAY_PAUSE, KEY_PLAY_PAUSE },
  {0,            0,      0,           0,            0,           0}
 };
 
 void PDC_set_keyboard_binary(bool on)
 {
+    INTENTIONALLY_UNUSED_PARAMETER( on);
     PDC_LOG(("PDC_set_keyboard_binary() - called\n"));
 }
 
@@ -426,6 +437,7 @@ int PDC_get_key(void)
         break;
     case SDL_MOUSEMOTION:
         SDL_ShowCursor(SDL_ENABLE);
+               /* FALLTHRU */
     case SDL_MOUSEBUTTONUP:
     case SDL_MOUSEBUTTONDOWN:
     case SDL_MOUSEWHEEL:

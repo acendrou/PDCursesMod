@@ -116,10 +116,12 @@ void PDC_reset_prog_mode( void)
     term.c_lflag &= ~(ICANON | ECHO);
     tcsetattr( STDIN, TCSANOW, &term);
 #endif
+#ifndef _WIN32
     if( !PDC_is_ansi)
-        printf( "\033[?1006h");    /* Set SGR mouse tracking,  if available */
-    printf( "\033[?47h");      /* Save screen */
-    printf( "\0337");         /* save cursor & attribs (VT100) */
+        PDC_puts_to_stdout( "\033[?1006h");    /* Set SGR mouse tracking,  if available */
+#endif
+    PDC_puts_to_stdout( "\033[?47h");      /* Save screen */
+    PDC_puts_to_stdout( "\033" "7");         /* save cursor & attribs (VT100) */
 
     SP->_trap_mbe = _stored_trap_mbe;
     PDC_mouse_set( );          /* clear any mouse event captures */
@@ -141,7 +143,10 @@ int PDC_resize_screen(int nlines, int ncols)
       }
    else if( nlines > 1 && ncols > 1 && !PDC_is_ansi)
       {
-      printf( "\033[8;%d;%dt", nlines, ncols);
+      char tbuff[50];
+
+      snprintf( tbuff, sizeof( tbuff), "\033[8;%d;%dt", nlines, ncols);
+      PDC_puts_to_stdout( tbuff);
       PDC_rows = nlines;
       PDC_cols = ncols;
       }
@@ -150,19 +155,23 @@ int PDC_resize_screen(int nlines, int ncols)
 
 void PDC_restore_screen_mode(int i)
 {
+    INTENTIONALLY_UNUSED_PARAMETER( i);
 }
 
 void PDC_save_screen_mode(int i)
 {
+    INTENTIONALLY_UNUSED_PARAMETER( i);
 }
 
 void PDC_scr_close( void)
 {
+#ifndef _WIN32
    if( !PDC_is_ansi)
-       printf( "\033[?1006l");    /* Turn off SGR mouse tracking */
-   printf( "\0338");         /* restore cursor & attribs (VT100) */
-   printf( "\033[m");         /* set default screen attributes */
-   printf( "\033[?47l");      /* restore screen */
+       PDC_puts_to_stdout( "\033[?1006l");    /* Turn off SGR mouse tracking */
+#endif
+   PDC_puts_to_stdout( "\033" "8");         /* restore cursor & attribs (VT100) */
+   PDC_puts_to_stdout( "\033[m");         /* set default screen attributes */
+   PDC_puts_to_stdout( "\033[?47l");      /* restore screen */
    PDC_curs_set( 2);          /* blinking block cursor */
    PDC_gotoyx( PDC_cols - 1, 0);
    _stored_trap_mbe = SP->_trap_mbe;
@@ -175,6 +184,8 @@ void PDC_scr_close( void)
       tcsetattr( STDIN, TCSANOW, &orig_term);
    #endif
 #endif
+   PDC_doupdate( );
+   PDC_puts_to_stdout( NULL);      /* free internal cache */
    return;
 }
 
@@ -191,17 +202,21 @@ static void sigwinchHandler( int sig)
 {
    struct winsize ws;
 
+   INTENTIONALLY_UNUSED_PARAMETER( sig);
    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) != -1)
       if( PDC_rows != ws.ws_row || PDC_cols != ws.ws_col)
          {
          PDC_rows = ws.ws_row;
          PDC_cols = ws.ws_col;
          PDC_resize_occurred = TRUE;
+         if (SP)
+            SP->resized = TRUE;
          }
 }
 
 static void sigintHandler( int sig)
 {
+    INTENTIONALLY_UNUSED_PARAMETER( sig);
     if( !SP->raw_inp)
     {
         PDC_scr_close( );
@@ -245,6 +260,8 @@ int PDC_scr_open(void)
           PDC_capabilities |= A_DIM;
        if( strstr( capabilities, "STA"))
           PDC_capabilities |= A_STANDOUT;
+       if( strstr( capabilities, "STR"))
+          PDC_capabilities |= A_STRIKEOUT;
        }
     COLORS = (PDC_is_ansi ? 16 : 256);
     if( PDC_has_rgb_color)
@@ -320,6 +337,8 @@ int PDC_scr_open(void)
 
 int PDC_set_function_key( const unsigned function, const int new_key)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( function);
+   INTENTIONALLY_UNUSED_PARAMETER( new_key);
    return( 0);
 }
 
@@ -328,6 +347,10 @@ void PDC_set_resize_limits( const int new_min_lines,
                             const int new_min_cols,
                             const int new_max_cols)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( new_min_lines);
+   INTENTIONALLY_UNUSED_PARAMETER( new_max_lines);
+   INTENTIONALLY_UNUSED_PARAMETER( new_min_cols);
+   INTENTIONALLY_UNUSED_PARAMETER( new_max_cols);
    return;
 }
 

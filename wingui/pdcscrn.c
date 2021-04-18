@@ -38,7 +38,7 @@ functions.        */
 static int add_mouse( int button, const int action, const int x, const int y);
 static int keep_size_within_bounds( int *lines, int *cols);
 INLINE int set_default_sizes_from_registry( const int n_cols, const int n_rows,
-               const int xloc, const int yloc, const int menu_shown);
+               const int xloc, const int yloc);
 void PDC_transform_line_given_hdc( const HDC hdc, const int lineno,
                              int x, int len, const chtype *srcp);
 
@@ -96,7 +96,6 @@ int debug_printf( const char *format, ...)
             {
                 printf( "Opening '%s' failed\n", output_filename);
                 exit( 0);
-                debugging = FALSE;       /* don't bother trying again */
             }
         }
     }
@@ -118,7 +117,7 @@ static void final_cleanup( void)
 
         GetWindowRect( PDC_hWnd, &rect);
         set_default_sizes_from_registry( SP->cols, SP->lines,
-                  rect.left, rect.top, menu_shown);
+                  rect.left, rect.top);
     }
     PDC_LOG(( "final_cleanup: freeing fonts\n"));
     PDC_transform_line( 0, 0, 0, NULL);  /* free any fonts */
@@ -164,11 +163,10 @@ int PDC_choose_a_new_font( void);                     /* pdcdisp.c */
        /* (i.e., there's no key that's supposed to be returned for   */
        /* exit handling), and 22 = Ctrl-V (i.e.,  hit Ctrl-V to      */
        /* paste text from the clipboard into the key queue);  then   */
-       /* Ctl-= (enlarge font) and Ctl-Minus (decrease font);  then  */
-       /* Ctl-, (select font from dialog).                           */
+       /* no key by default to enlarge/decrease font size or to      */
+       /* select a font from the font dialog.                        */
 
-static int PDC_shutdown_key[PDC_MAX_FUNCTION_KEYS] = { 0, 22, CTL_EQUAL, CTL_MINUS,
-                                 CTL_COMMA };
+static int PDC_shutdown_key[PDC_MAX_FUNCTION_KEYS] = { 0, 22, 0, 0, 0 };
 int PDC_n_rows, PDC_n_cols;
 int PDC_cxChar, PDC_cyChar, PDC_key_queue_low = 0, PDC_key_queue_high = 0;
 int PDC_key_queue[KEY_QUEUE_SIZE];
@@ -254,7 +252,7 @@ static const KPTAB kptab[] =
     {0,          0,         0,           0,          0   }, /* 0  */
     {0,          0,         0,           0,          0   }, /* 1   VK_LBUTTON */
     {0,          0,         0,           0,          0   }, /* 2   VK_RBUTTON */
-    {CTL_PAUSE,  'a',       'b',         'c',        0   }, /* 3   VK_CANCEL  */
+    {KEY_PAUSE,  'a',       'b',         'c',        0   }, /* 3   VK_CANCEL  */
     {0,          0,         0,           0,          0   }, /* 4   VK_MBUTTON */
     {0,          0,         0,           0,          0   }, /* 5   */
     {0,          0,         0,           0,          0   }, /* 6   */
@@ -270,7 +268,7 @@ static const KPTAB kptab[] =
     {0,          0,         0,           0,          0   }, /* 16  VK_SHIFT   HANDLED SEPARATELY */
     {0,          0,         0,           0,          0   }, /* 17  VK_CONTROL HANDLED SEPARATELY */
     {0,          0,         0,           0,          0   }, /* 18  VK_MENU    HANDLED SEPARATELY */
-    {KEY_PAUSE,  KEY_SPAUSE,CTL_PAUSE,   0,          0   }, /* 19  VK_PAUSE   */
+    {KEY_PAUSE,  KEY_PAUSE, KEY_PAUSE,   0,          0   }, /* 19  VK_PAUSE   */
     {0,          0,         0,           0,          0   }, /* 20  VK_CAPITAL HANDLED SEPARATELY */
     {0,          0,         0,           0,          0   }, /* 21  VK_HANGUL  */
     {0,          0,         0,           0,          0   }, /* 22  */
@@ -295,20 +293,20 @@ static const KPTAB kptab[] =
     {0,          0,         0,           0,          0   }, /* 41  VK_SELECT  */
     {0,          0,         0,           0,          0   }, /* 42  VK_PRINT   */
     {0,          0,         0,           0,          0   }, /* 43  VK_EXECUTE */
-    {KEY_PRINTSCREEN, 0,    0,       ALT_PRINTSCREEN, 0  }, /* 44  VK_SNAPSHOT*/
+    {KEY_PRINTSCREEN, 0,    0,       KEY_PRINTSCREEN, 0  }, /* 44  VK_SNAPSHOT*/
     {PAD0,       0x30,      CTL_PAD0,    ALT_PAD0,   11  }, /* 45  VK_INSERT  */
     {PADSTOP,    0x2E,      CTL_PADSTOP, ALT_PADSTOP,12  }, /* 46  VK_DELETE  */
     {0,          0,         0,           0,          0   }, /* 47  VK_HELP    */
-    {0x30,       0x29,      CTL_0,       ALT_0,      0   }, /* 48  */
-    {0x31,       0x21,      CTL_1,       ALT_1,      0   }, /* 49  */
-    {0x32,       0x40,      CTL_2,       ALT_2,      0   }, /* 50  */
-    {0x33,       0x23,      CTL_3,       ALT_3,      0   }, /* 51  */
-    {0x34,       0x24,      CTL_4,       ALT_4,      0   }, /* 52  */
-    {0x35,       0x25,      CTL_5,       ALT_5,      0   }, /* 53  */
-    {0x36,       0x5E,      CTL_6,       ALT_6,      0   }, /* 54  */
-    {0x37,       0x26,      CTL_7,       ALT_7,      0   }, /* 55  */
-    {0x38,       0x2A,      CTL_8,       ALT_8,      0   }, /* 56  */
-    {0x39,       0x28,      CTL_9,       ALT_9,      0   }, /* 57  */
+    {0x30,       0x29,      '0',         ALT_0,      0   }, /* 48  */
+    {0x31,       0x21,      '1',         ALT_1,      0   }, /* 49  */
+    {0x32,       0x40,      '2',         ALT_2,      0   }, /* 50  */
+    {0x33,       0x23,      '3',         ALT_3,      0   }, /* 51  */
+    {0x34,       0x24,      '4',         ALT_4,      0   }, /* 52  */
+    {0x35,       0x25,      '5',         ALT_5,      0   }, /* 53  */
+    {0x36,       0x5E,      '6',         ALT_6,      0   }, /* 54  */
+    {0x37,       0x26,      '7',         ALT_7,      0   }, /* 55  */
+    {0x38,       0x2A,      '8',         ALT_8,      0   }, /* 56  */
+    {0x39,       0x28,      '9',         ALT_9,      0   }, /* 57  */
     {0,          0,         0,           0,          0   }, /* 58  */
     {0,          0,         0,           0,          0   }, /* 59  */
     {0,          0,         0,           0,          0   }, /* 60  */
@@ -344,7 +342,7 @@ static const KPTAB kptab[] =
     {0x7A,       0x5A,      0x1A,        ALT_Z,      0   }, /* 90  */
     {0,          0,         0,           0,          0   }, /* 91  VK_LWIN    */
     {0,          0,         0,           0,          0   }, /* 92  VK_RWIN    */
-    {KEY_APPS,   KEY_SAPPS, CTL_APPS,    ALT_APPS,   13  }, /* 93  VK_APPS    */
+    {KEY_APPS,   KEY_APPS,  KEY_APPS,    KEY_APPS,   13  }, /* 93  VK_APPS    */
     {0,          0,         0,           0,          0   }, /* 94  */
     {0,          0,         0,           0,          0   }, /* 95  */
     {0x30,       0,         CTL_PAD0,    ALT_PAD0,   0   }, /* 96  VK_NUMPAD0 */
@@ -399,7 +397,7 @@ static const KPTAB kptab[] =
     {0, 0, 0, 0, 0},  /* 142 unassigned */
     {0, 0, 0, 0, 0},  /* 143 unassigned */
     {0, 0, 0, 0, 0},  /* 144 VK_NUMLOCK */
-    {KEY_SCROLLLOCK, 0, 0, ALT_SCROLLLOCK, 0},    /* 145 VKSCROLL */
+    {KEY_SCROLLLOCK, 0, 0, KEY_SCROLLLOCK, 0},    /* 145 VKSCROLL */
     {0, 0, 0, 0, 0},  /* 146 OEM specific */
     {0, 0, 0, 0, 0},  /* 147 OEM specific */
     {0, 0, 0, 0, 0},  /* 148 OEM specific */
@@ -440,13 +438,13 @@ static const KPTAB kptab[] =
     {0, 0, 0, 0, 31},  /* 183 VK_LAUNCH_APP2         */
     {0, 0, 0, 0, 0},  /* 184 Reserved */
     {0, 0, 0, 0, 0},  /* 185 Reserved */
-    {';', ':', CTL_SEMICOLON, ALT_SEMICOLON, 0},  /* 186 VK_OEM_1      */
-    {'=', '+', CTL_EQUAL,     ALT_EQUAL,     0},  /* 187 VK_OEM_PLUS   */
-    {',', '<', CTL_COMMA,     ALT_COMMA,     0},  /* 188 VK_OEM_COMMA  */
-    {'-', '_', CTL_MINUS,     ALT_MINUS,     0},  /* 189 VK_OEM_MINUS  */
-    {'.', '>', CTL_STOP,      ALT_STOP,      0},  /* 190 VK_OEM_PERIOD */
-    {'/', '?', CTL_FSLASH,    ALT_FSLASH,    0},  /* 191 VK_OEM_2      */
-    {'`', '~', CTL_BQUOTE,    ALT_BQUOTE,    0},  /* 192 VK_OEM_3      */
+    {';', ':', ';',           ALT_SEMICOLON, 0},  /* 186 VK_OEM_1      */
+    {'=', '+', '=',           ALT_EQUAL,     0},  /* 187 VK_OEM_PLUS   */
+    {',', '<', ',',           ALT_COMMA,     0},  /* 188 VK_OEM_COMMA  */
+    {'-', '_', '-',           ALT_MINUS,     0},  /* 189 VK_OEM_MINUS  */
+    {'.', '>', '.',           ALT_STOP,      0},  /* 190 VK_OEM_PERIOD */
+    {'/', '?', '/',           ALT_FSLASH,    0},  /* 191 VK_OEM_2      */
+    {'`', '~', '`',           ALT_BQUOTE,    0},  /* 192 VK_OEM_3      */
     {0, 0, 0, 0, 0},  /* 193 */
     {0, 0, 0, 0, 0},  /* 194 */
     {0, 0, 0, 0, 0},  /* 195 */
@@ -498,25 +496,25 @@ static const KPTAB ext_kptab[] =
    {KEY_DOWN,   KEY_SDOWN,      CTL_DOWN,       ALT_DOWN    }, /* 10  40 */
    {KEY_IC,     KEY_SIC,        CTL_INS,        ALT_INS     }, /* 11  45 */
    {KEY_DC,     KEY_SDC,        CTL_DEL,        ALT_DEL     }, /* 12  46 */
-   {KEY_APPS,   KEY_SAPPS     , CTL_APPS,       ALT_APPS    }, /* 13  93  VK_APPS    */
-   {KEY_BROWSER_BACK, KEY_SBROWSER_BACK, KEY_CBROWSER_BACK, KEY_ABROWSER_BACK, }, /* 14 166 VK_BROWSER_BACK        */
-   {KEY_BROWSER_FWD,  KEY_SBROWSER_FWD,  KEY_CBROWSER_FWD,  KEY_ABROWSER_FWD,  }, /* 15 167 VK_BROWSER_FORWARD     */
-   {KEY_BROWSER_REF,  KEY_SBROWSER_REF,  KEY_CBROWSER_REF,  KEY_ABROWSER_REF,  }, /* 16 168 VK_BROWSER_REFRESH     */
-   {KEY_BROWSER_STOP, KEY_SBROWSER_STOP, KEY_CBROWSER_STOP, KEY_ABROWSER_STOP, }, /* 17 169 VK_BROWSER_STOP        */
-   {KEY_SEARCH,       KEY_SSEARCH,       KEY_CSEARCH,       KEY_ASEARCH,       }, /* 18 170 VK_BROWSER_SEARCH      */
-   {KEY_FAVORITES,    KEY_SFAVORITES,    KEY_CFAVORITES,    KEY_AFAVORITES,    }, /* 19 171 VK_BROWSER_FAVORITES   */
-   {KEY_BROWSER_HOME, KEY_SBROWSER_HOME, KEY_CBROWSER_HOME, KEY_ABROWSER_HOME, }, /* 20 172 VK_BROWSER_HOME        */
-   {KEY_VOLUME_MUTE,  KEY_SVOLUME_MUTE,  KEY_CVOLUME_MUTE,  KEY_AVOLUME_MUTE,  }, /* 21 173 VK_VOLUME_MUTE         */
-   {KEY_VOLUME_DOWN,  KEY_SVOLUME_DOWN,  KEY_CVOLUME_DOWN,  KEY_AVOLUME_DOWN,  }, /* 22 174 VK_VOLUME_DOWN         */
-   {KEY_VOLUME_UP,    KEY_SVOLUME_UP,    KEY_CVOLUME_UP,    KEY_AVOLUME_UP,    }, /* 23 175 VK_VOLUME_UP           */
-   {KEY_NEXT_TRACK,   KEY_SNEXT_TRACK,   KEY_CNEXT_TRACK,   KEY_ANEXT_TRACK,   }, /* 24 176 VK_MEDIA_NEXT_TRACK    */
-   {KEY_PREV_TRACK,   KEY_SPREV_TRACK,   KEY_CPREV_TRACK,   KEY_APREV_TRACK,   }, /* 25 177 VK_MEDIA_PREV_TRACK    */
-   {KEY_MEDIA_STOP,   KEY_SMEDIA_STOP,   KEY_CMEDIA_STOP,   KEY_AMEDIA_STOP,   }, /* 26 178 VK_MEDIA_STOP          */
-   {KEY_PLAY_PAUSE,   KEY_SPLAY_PAUSE,   KEY_CPLAY_PAUSE,   KEY_APLAY_PAUSE,   }, /* 27 179 VK_MEDIA_PLAY_PAUSE    */
-   {KEY_LAUNCH_MAIL,  KEY_SLAUNCH_MAIL,  KEY_CLAUNCH_MAIL,  KEY_ALAUNCH_MAIL,  }, /* 28 180 VK_LAUNCH_MAIL         */
-   {KEY_MEDIA_SELECT, KEY_SMEDIA_SELECT, KEY_CMEDIA_SELECT, KEY_AMEDIA_SELECT, }, /* 29 181 VK_LAUNCH_MEDIA_SELECT */
-   {KEY_LAUNCH_APP1,  KEY_SLAUNCH_APP1,  KEY_CLAUNCH_APP1,  KEY_ALAUNCH_APP1,  }, /* 30 182 VK_LAUNCH_APP1         */
-   {KEY_LAUNCH_APP2,  KEY_SLAUNCH_APP2,  KEY_CLAUNCH_APP2,  KEY_ALAUNCH_APP2,  }, /* 31 183 VK_LAUNCH_APP2         */
+   {KEY_APPS,   KEY_APPS,       KEY_APPS,       KEY_APPS,   }, /* 13  93  VK_APPS    */
+   {KEY_BROWSER_BACK, KEY_BROWSER_BACK, KEY_BROWSER_BACK, KEY_BROWSER_BACK, }, /* 14 166 VK_BROWSER_BACK        */
+   {KEY_BROWSER_FWD,  KEY_BROWSER_FWD,  KEY_BROWSER_FWD,  KEY_BROWSER_FWD,  }, /* 15 167 VK_BROWSER_FORWARD     */
+   {KEY_BROWSER_REF,  KEY_BROWSER_REF,  KEY_BROWSER_REF,  KEY_BROWSER_REF,  }, /* 16 168 VK_BROWSER_REFRESH     */
+   {KEY_BROWSER_STOP, KEY_BROWSER_STOP, KEY_BROWSER_STOP, KEY_BROWSER_STOP, }, /* 17 169 VK_BROWSER_STOP        */
+   {KEY_SEARCH,       KEY_SEARCH,       KEY_SEARCH,       KEY_SEARCH,       }, /* 18 170 VK_BROWSER_SEARCH      */
+   {KEY_FAVORITES,    KEY_FAVORITES,    KEY_FAVORITES,    KEY_FAVORITES,    }, /* 19 171 VK_BROWSER_FAVORITES   */
+   {KEY_BROWSER_HOME, KEY_BROWSER_HOME, KEY_BROWSER_HOME, KEY_BROWSER_HOME, }, /* 20 172 VK_BROWSER_HOME        */
+   {KEY_VOLUME_MUTE,  KEY_VOLUME_MUTE,  KEY_VOLUME_MUTE,  KEY_VOLUME_MUTE,  }, /* 21 173 VK_VOLUME_MUTE         */
+   {KEY_VOLUME_DOWN,  KEY_VOLUME_DOWN,  KEY_VOLUME_DOWN,  KEY_VOLUME_DOWN,  }, /* 22 174 VK_VOLUME_DOWN         */
+   {KEY_VOLUME_UP,    KEY_VOLUME_UP,    KEY_VOLUME_UP,    KEY_VOLUME_UP,    }, /* 23 175 VK_VOLUME_UP           */
+   {KEY_NEXT_TRACK,   KEY_NEXT_TRACK,   KEY_NEXT_TRACK,   KEY_NEXT_TRACK,   }, /* 24 176 VK_MEDIA_NEXT_TRACK    */
+   {KEY_PREV_TRACK,   KEY_PREV_TRACK,   KEY_PREV_TRACK,   KEY_PREV_TRACK,   }, /* 25 177 VK_MEDIA_PREV_TRACK    */
+   {KEY_MEDIA_STOP,   KEY_MEDIA_STOP,   KEY_MEDIA_STOP,   KEY_MEDIA_STOP,   }, /* 26 178 VK_MEDIA_STOP          */
+   {KEY_PLAY_PAUSE,   KEY_PLAY_PAUSE,   KEY_PLAY_PAUSE,   KEY_PLAY_PAUSE,   }, /* 27 179 VK_MEDIA_PLAY_PAUSE    */
+   {KEY_LAUNCH_MAIL,  KEY_LAUNCH_MAIL,  KEY_LAUNCH_MAIL,  KEY_LAUNCH_MAIL,  }, /* 28 180 VK_LAUNCH_MAIL         */
+   {KEY_MEDIA_SELECT, KEY_MEDIA_SELECT, KEY_MEDIA_SELECT, KEY_MEDIA_SELECT, }, /* 29 181 VK_LAUNCH_MEDIA_SELECT */
+   {KEY_LAUNCH_APP1,  KEY_LAUNCH_APP1,  KEY_LAUNCH_APP1,  KEY_LAUNCH_APP1,  }, /* 30 182 VK_LAUNCH_APP1         */
+   {KEY_LAUNCH_APP2,  KEY_LAUNCH_APP2,  KEY_LAUNCH_APP2,  KEY_LAUNCH_APP2,  }, /* 31 183 VK_LAUNCH_APP2         */
 };
 
 
@@ -1035,6 +1033,7 @@ static void get_app_name( TCHAR *buff, const size_t buff_size, const bool includ
 static BOOL CALLBACK get_app_icon_callback(HMODULE hModule, LPCTSTR lpszType,
                                            LPTSTR lpszName, LONG_PTR lParam)
 {
+    INTENTIONALLY_UNUSED_PARAMETER( lpszType);
     *((HICON *) lParam) = LoadIcon(hModule, lpszName);
     return FALSE; /* stop enumeration after first icon */
 }
@@ -1060,7 +1059,7 @@ for,  say,  Testcurs,  while having different settings for,  say,  Firework
 or Rain or one's own programs.  */
 
 INLINE int set_default_sizes_from_registry( const int n_cols, const int n_rows,
-               const int xloc, const int yloc, const int menu_shown)
+               const int xloc, const int yloc)
 {
     DWORD is_new_key;
     HKEY hNewKey;
@@ -1219,7 +1218,7 @@ void PDC_set_resize_limits( const int new_min_lines, const int new_max_lines,
       /* for the application title and the menu.  */
 
 static void adjust_window_size( int *xpixels, int *ypixels, DWORD window_style,
-               const int menu_shown, DWORD window_ex_style)
+                                     DWORD window_ex_style)
 {
     RECT rect;
 
@@ -1260,7 +1259,7 @@ static int keep_size_within_bounds( int *lines, int *cols)
 }
 
 INLINE int get_default_sizes_from_registry( int *n_cols, int *n_rows,
-                                     int *xloc, int *yloc, int *menu_shown)
+                                     int *xloc, int *yloc)
 {
     TCHAR data[100];
     DWORD size_out = sizeof( data);
@@ -1285,7 +1284,7 @@ INLINE int get_default_sizes_from_registry( int *n_cols, int *n_rows,
 
             my_stscanf( data, _T( "%dx%d,%d,%d,%d,%d;%d,%d,%d,%d:%n"),
                              &x, &y, &PDC_font_size,
-                             xloc, yloc, menu_shown,
+                             xloc, yloc, &menu_shown,
                              &minl, &maxl,
                              &minc, &maxc,
                              &bytes_read);
@@ -1416,7 +1415,7 @@ static void HandleSize( const WPARAM wParam, const LPARAM lParam)
         int new_ypixels = PDC_cyChar * PDC_n_rows;
 
         adjust_window_size( &new_xpixels, &new_ypixels,
-                            GetWindowLong( PDC_hWnd, GWL_STYLE), menu_shown,
+                            GetWindowLong( PDC_hWnd, GWL_STYLE),
                             GetWindowLong( PDC_hWnd, GWL_EXSTYLE));
         debug_printf( "Irregular size\n");
         SetWindowPos( PDC_hWnd, 0, 0, 0,
@@ -1435,6 +1434,7 @@ static int HandleMouseMove( WPARAM wParam, LPARAM lParam)
     const int mouse_x = LOWORD( lParam) / PDC_cxChar;
     const int mouse_y = HIWORD( lParam) / PDC_cyChar;
 
+    INTENTIONALLY_UNUSED_PARAMETER( wParam);
     return( add_mouse( 0, BUTTON_MOVED, mouse_x, mouse_y) != -1);
 }
 
@@ -1479,7 +1479,6 @@ static void HandleSyskeyDown( const WPARAM wParam, const LPARAM lParam,
     const int alt_pressed = (GetKeyState( VK_MENU) & 0x8000);
     const int extended = ((lParam & 0x01000000) != 0);
     const int repeated = (int)( lParam >> 30) & 1;
-    const KPTAB *kptr = kptab + wParam;
     int key = 0;
     static int repeat_count;
 
@@ -1513,17 +1512,30 @@ static void HandleSyskeyDown( const WPARAM wParam, const LPARAM lParam,
 
     if( !key)           /* it's not a shift, ctl, alt handled above */
     {
-        if( extended && kptr->extended != 999)
-            kptr = ext_kptab + kptr->extended;
-
-        if( alt_pressed)
-            key = kptr->alt;
-        else if( ctrl_pressed)
-            key = kptr->control;
-        else if( shift_pressed)
-            key = kptr->shift;
+        if( wParam >= sizeof( kptab) / sizeof( kptab[0]))
+            return;
         else
-            key = kptr->normal;
+        {
+            const KPTAB *kptr = kptab + wParam;
+
+            if( extended && kptr->extended != 999)
+            {
+            if( kptr->extended >= sizeof( ext_kptab) / sizeof( ext_kptab[0])
+                      || kptr->extended < 0)
+                return;
+            else
+                kptr = ext_kptab + kptr->extended;
+            }
+
+            if( alt_pressed)
+                key = kptr->alt;
+            else if( ctrl_pressed)
+                key = kptr->control;
+            else if( shift_pressed)
+                key = kptr->shift;
+            else
+                key = kptr->normal;
+        }
     }
 
     /* On non-US keyboards,  people hit Alt-Gr ("Alt-Ctrl" to */
@@ -1544,6 +1556,9 @@ static void HandleSyskeyDown( const WPARAM wParam, const LPARAM lParam,
                if( !alt_pressed)
                   key_already_handled = TRUE;
             }
+
+    if( key > ' ' && key < KEY_MIN && ctrl_pressed && !alt_pressed)
+       add_key_to_queue( key);
     SP->key_modifiers = 0;
     /* Save the key modifiers if required. Do this first to allow to
        detect e.g. a pressed CTRL key after a hit of NUMLOCK. */
@@ -1568,6 +1583,7 @@ static void HandleTimer( const WPARAM wParam )
 {
     int i;           /* see WndProc() notes */
 
+    INTENTIONALLY_UNUSED_PARAMETER( wParam);
     PDC_blink_state ^= 1;
     if( SP->termattrs & A_BLINK)
     {
@@ -1621,7 +1637,7 @@ static HMENU set_menu( void)
 
 INLINE void HandleMenuToggle( bool *ptr_ignore_resize)
 {
-    const bool is_zoomed = IsZoomed( PDC_hWnd);
+    const BOOL is_zoomed = IsZoomed( PDC_hWnd);
     HMENU hMenu;
 
     menu_shown ^= 1;
@@ -2263,8 +2279,7 @@ INLINE int set_up_window( void)
 #endif
 
     get_default_sizes_from_registry( &n_default_columns, &n_default_rows,
-                                     &winfo.xloc, &winfo.yloc,
-                                     &menu_shown);
+                                     &winfo.xloc, &winfo.yloc);
     if( PDC_n_rows > 2 && PDC_n_cols > 2)
     {
         n_default_columns = PDC_n_cols;
@@ -2295,7 +2310,7 @@ INLINE int set_up_window( void)
         winfo.xsize = PDC_cxChar * n_default_columns;
         winfo.ysize = PDC_cyChar * n_default_rows;
         adjust_window_size( &winfo.xsize, &winfo.ysize, winfo.window_style,
-                            menu_shown, winfo.window_ex_style);
+                                        winfo.window_ex_style);
     }
 
     InitializeCriticalSection(&PDC_cs);
@@ -2474,10 +2489,12 @@ void PDC_reset_shell_mode(void)
 
 void PDC_restore_screen_mode(int i)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( i);
 }
 
 void PDC_save_screen_mode(int i)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( i);
 }
 
 bool PDC_can_change_color(void)

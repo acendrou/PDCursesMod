@@ -20,7 +20,7 @@ SFLAGS		= -DHAVE_VSNPRINTF -DHAVE_VSSCANF
 ifeq ($(DEBUG),Y)
 	CFLAGS  = -g -Wall -pedantic -DPDCDEBUG
 else
-	CFLAGS  = -O2 -Wall -pedantic
+	CFLAGS  = -O2 -Wall -Wextra -pedantic
 endif
 
 ifeq ($(DOS),Y)

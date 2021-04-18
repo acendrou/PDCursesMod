@@ -81,6 +81,7 @@ struct commands
 
 typedef struct commands COMMAND;
 
+#define INTENTIONALLY_UNUSED_PARAMETER( param) (void)(param)
 #define MAX_OPTIONS (7 + HAVE_COLOR + HAVE_RESIZE + HAVE_CLIPBOARD + HAVE_WIDE)
 
 COMMAND command[MAX_OPTIONS] =
@@ -114,7 +115,10 @@ int main(int argc, char *argv[])
     int key, old_option = -1, new_option = 0;
     bool quit = FALSE;
 
-    setlocale(LC_ALL, "");
+    if( argc == 2)
+       setlocale(LC_ALL, argv[1]);
+    else
+       setlocale(LC_ALL, "");
 
 #ifdef PDCURSES
 #ifdef PDC_VER_MAJOR   /* so far only seen in 4.0+ */
@@ -237,6 +241,8 @@ int initTest(WINDOW **win, int argc, char *argv[])
 #ifdef XCURSES
     Xinitscr(argc, argv);
 #else
+    INTENTIONALLY_UNUSED_PARAMETER( argv);
+    INTENTIONALLY_UNUSED_PARAMETER( argc);
     initscr();
 #endif
 #ifdef A_COLOR
@@ -753,6 +759,7 @@ void resizeTest(WINDOW *dummy)
     int nwidth = 135, nheight = 52;
     int owidth = COLS, oheight = LINES;
 
+    INTENTIONALLY_UNUSED_PARAMETER( dummy);
     savetty();
 
     resize_term(nheight, nwidth);
@@ -801,6 +808,7 @@ void padTest(WINDOW *dummy)
 {
     WINDOW *pad, *spad;
 
+    INTENTIONALLY_UNUSED_PARAMETER( dummy);
     pad = newpad(50, 100);
     wattron(pad, A_REVERSE);
     mvwaddstr(pad, 5, 2, "This is a new pad");
@@ -843,6 +851,7 @@ void clipboardTest(WINDOW *win)
     char *ptr = NULL;
     long i, length = 0;
 
+    INTENTIONALLY_UNUSED_PARAMETER( win);
     mvaddstr(1, 1,
              "This test will display the contents of the system clipboard");
 
@@ -1125,6 +1134,7 @@ void acsTest(WINDOW *win)
     int n_items = sizeof( acs_names) / sizeof( acs_names[0]);
     int n_rows = LINES / 2 - 4;
 
+    INTENTIONALLY_UNUSED_PARAMETER( win);
     i = 0;
     while( i < n_items)
     {
@@ -1202,6 +1212,7 @@ void attrTest(WINDOW *win)
     int tmarg = (LINES - 16) / 2;
     int col1 = (COLS - 36) / 2, col2 = col1 + 20;
 
+    INTENTIONALLY_UNUSED_PARAMETER( win);
     attrset(A_BOLD);
     mvaddstr(tmarg, (COLS - 20) / 2, "Character Attributes");
     attrset(A_NORMAL);
@@ -1239,10 +1250,31 @@ void attrTest(WINDOW *win)
     mvaddstr(tmarg + 13, col1, "A_UNDERLINE");
     attrset(A_NORMAL);
 
+#ifdef A_STRIKEOUT
+    if( A_STRIKEOUT)
+    {
+        attrset(A_STRIKEOUT);
+        mvaddstr(tmarg + 15, col1, "A_STRIKEOUT");
+        attrset(A_NORMAL);
+    }
+#endif
+
+#ifdef A_OVERLINE
+    if( A_OVERLINE)
+    {
+        attrset(A_OVERLINE);
+        mvaddstr(tmarg + 15, col2, "A_OVERLINE");
+        attrset(A_NORMAL);
+    }
+#endif
+
 #ifdef A_ITALIC
-    attrset(A_ITALIC|A_UNDERLINE);
-    mvaddstr(tmarg + 3, col2, "Underlined Italic");
-    attrset(A_NORMAL);
+    if( A_ITALIC)
+    {
+        attrset(A_ITALIC|A_UNDERLINE);
+        mvaddstr(tmarg + 3, col2, "Underlined Italic");
+        attrset(A_NORMAL);
+    }
 #endif
 
     attrset(A_BOLD|A_UNDERLINE);
@@ -1269,7 +1301,7 @@ void attrTest(WINDOW *win)
     mvaddstr(tmarg + 13, col2, "Reverse Blink");
     attrset(A_NORMAL);
 
-    mvaddstr(tmarg + 16, 3, "Press any key to continue");
+    mvaddstr(tmarg + 17, 3, "Press any key to continue");
     curTest();
 
 #ifdef PDCURSES
@@ -1285,7 +1317,7 @@ void remap(int tmarg, const short *colors)
     {
         short red, green, blue;
     } orgcolors[16];
-    int i, maxcol = (COLORS >= 16) ? 16 : 8;
+    short i, maxcol = (COLORS >= 16) ? 16 : 8;
 
     for (i = 0; i < maxcol; i++)
         color_content(i, &(orgcolors[i].red),
@@ -1317,7 +1349,7 @@ void remap(int tmarg, const short *colors)
 
 void extended(int tmarg)
 {
-    int i, x, y, z, lmarg = (COLS - 77) / 2;
+    short i, x, y, z, lmarg = (short)(COLS - 77) / 2;
 
     erase();
 
@@ -1394,8 +1426,8 @@ void gradient(int tmarg)
         move(tmarg + 3 + i, (COLS - 69) / 2);
         for (j = 0; j < len && cnum < COLORS && pnum < COLOR_PAIRS; j++)
         {
-            const int oval = j * 1000 / len;
-            const int reverse = 1000 - oval;
+            const short oval = (short)( j * 1000 / len);
+            const short reverse = 1000 - oval;
 
             if (!i)
             {
@@ -1414,10 +1446,12 @@ void gradient(int tmarg)
             }
             else
             {
-                const int r = rand( ) % 400, g = rand( ) % 400, b = rand( ) % 400;
+                const short r = (short)( rand( ) % 400);
+                const short g = (short)( rand( ) % 400);
+                const short b = (short)( rand( ) % 400);
 
-                init_color(cnum, r, g, b);
-                init_color(cnum + 1, 1000 - r, 1000 - g, 1000 - b);
+                init_color( cnum, r, g, b);
+                init_color( cnum + 1, 1000 - r, 1000 - g, 1000 - b);
             }
             init_pair(pnum, cnum, cnum + 1);
             attrset(COLOR_PAIR(pnum));
@@ -1459,6 +1493,7 @@ void colorTest(WINDOW *win)
 
     int i, j, tmarg, col1, col2, col3;
 
+    INTENTIONALLY_UNUSED_PARAMETER( win);
     if (!has_colors())
         return;
 
@@ -1484,9 +1519,9 @@ void colorTest(WINDOW *win)
 
     for (i = 0; i < 8; i++)
     {
-        init_pair(i + 4, colors[i], COLOR_BLACK);
+        init_pair((short)i + 4, colors[i], COLOR_BLACK);
         if (widecol)
-            init_pair(i + 12, colors[i] + 8, COLOR_BLACK);
+            init_pair((short)i + 12, colors[i] + 8, COLOR_BLACK);
 
         mvaddstr(tmarg + i + 5, col1, colornames[i]);
 
@@ -1521,6 +1556,7 @@ void wideTest(WINDOW *win)
     wchar_t tmp[513];
     size_t i;
 
+    INTENTIONALLY_UNUSED_PARAMETER( win);
     attrset(A_BOLD);
     mvaddstr(1, (COLS - 25) / 2, "Wide Character Input Test");
     attrset(A_NORMAL);

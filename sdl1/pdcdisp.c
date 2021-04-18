@@ -165,13 +165,16 @@ bool _grprint(chtype ch, SDL_Rect dest)
         goto VLINE;
     case ACS_RTEE:
         dest.w = wmid;
+               /* FALLTHRU */
     case ACS_PLUS:
         dest.h = pdc_fthick;
         dest.y += hmid;
         SDL_FillRect(pdc_screen, &dest, col);
+               /* FALLTHRU */
     VLINE:
         dest.h = pdc_fheight;
         dest.y -= hmid;
+               /* FALLTHRU */
     case ACS_VLINE:
         dest.w = pdc_fthick;
         dest.x += wmid;
@@ -192,6 +195,7 @@ bool _grprint(chtype ch, SDL_Rect dest)
         SDL_FillRect(pdc_screen, &dest, col);
         dest.w = pdc_fwidth;
         dest.x -= wmid;
+               /* FALLTHRU */
     case ACS_HLINE:
         dest.y += hmid;
         goto S1;
@@ -203,9 +207,11 @@ bool _grprint(chtype ch, SDL_Rect dest)
         goto S1;
     case ACS_S9:
         dest.y += pdc_fheight - pdc_fthick;
+               /* FALLTHRU */
     case ACS_S1:
     S1:
         dest.h = pdc_fthick;
+               /* FALLTHRU */
     case ACS_BLOCK:
     DRAW:
         SDL_FillRect(pdc_screen, &dest, col);
@@ -463,14 +469,24 @@ void _new_packet(attr_t attr, int lineno, int x, int len, const chtype *srcp)
     }
 #endif
 
-    if (!blink && (attr & A_UNDERLINE))
+    if (!blink && (attr & (A_UNDERLINE | A_OVERLINE | A_STRIKEOUT)))
     {
-        dest.y += pdc_fheight - pdc_fthick;
         dest.x = pdc_fwidth * x + pdc_xoffset;
         dest.h = pdc_fthick;
         dest.w = pdc_fwidth * len;
-
-        SDL_FillRect(pdc_screen, &dest, pdc_mapped[hcol]);
+        if( attr & A_OVERLINE)
+           SDL_FillRect(pdc_screen, &dest, pdc_mapped[hcol]);
+        if( attr & A_UNDERLINE)
+        {
+           dest.y += pdc_fheight - pdc_fthick;
+           SDL_FillRect(pdc_screen, &dest, pdc_mapped[hcol]);
+           dest.y -= pdc_fheight - pdc_fthick;
+        }
+        if( attr & A_STRIKEOUT)
+        {
+           dest.y += (pdc_fheight - pdc_fthick) / 2;
+           SDL_FillRect(pdc_screen, &dest, pdc_mapped[hcol]);
+        }
     }
 }
 
@@ -507,6 +523,7 @@ static Uint32 _blink_timer(Uint32 interval, void *param)
 {
     SDL_Event event;
 
+    INTENTIONALLY_UNUSED_PARAMETER( param);
     event.type = SDL_USEREVENT;
     SDL_PushEvent(&event);
     return(interval);

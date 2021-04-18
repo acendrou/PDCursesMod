@@ -132,7 +132,7 @@ panel
 
 PANEL *_bottom_panel = (PANEL *)0;
 PANEL *_top_panel = (PANEL *)0;
-PANEL _stdscr_pseudo_panel = { (WINDOW *)0 };
+PANEL _stdscr_pseudo_panel;
 
 #ifdef PANEL_DEBUG
 
@@ -548,11 +548,13 @@ PANEL *panel_below(const PANEL *pan)
 
 PANEL *ceiling_panel( SCREEN *sp)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( sp);
    return( panel_below( NULL));
 }
 
 PANEL *ground_panel( SCREEN *sp)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( sp);
    return( panel_above( NULL));
 }
 

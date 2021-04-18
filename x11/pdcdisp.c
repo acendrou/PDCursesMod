@@ -11,6 +11,7 @@
 #endif
 
 #include "../common/acs_defs.h"
+#include "../common/pdccolor.h"
 
 bool pdc_blinked_off;
 bool pdc_visible_cursor = FALSE;
@@ -89,7 +90,7 @@ static void _display_cursor(int old_row, int old_x, int new_row, int new_x)
 
     if (pdc_vertical_cursor)
     {
-        XSetForeground(XCURSESDISPLAY, pdc_cursor_gc, pdc_color[back]);
+        XSetForeground(XCURSESDISPLAY, pdc_cursor_gc, PDC_get_pixel( back));
 
         for (i = 1; i <= SP->visibility; i++)
             XDrawLine(XCURSESDISPLAY, XCURSESWIN, pdc_cursor_gc,
@@ -136,7 +137,7 @@ void PDC_blink_text(XtPointer unused, XtIntervalId *id)
 
     PDC_LOG(("PDC_blink_text() - called:\n"));
 
-    pdc_blinked_off = !pdc_blinked_off;
+    PDC_blink_state = pdc_blinked_off = !pdc_blinked_off;
 
     /* Redraw changed lines on the screen to match the blink state */
 
@@ -229,37 +230,33 @@ void PDC_gotoyx(int row, int col)
     PDC_display_cursor(SP->cursrow, SP->curscol, row, col, SP->visibility);
 }
 
+#define reverse_bytes( rgb) ((rgb >> 16) | (rgb & 0xff00) | ((rgb & 0xff) << 16))
+
 /* update the given physical line to look like the corresponding line in
    curscr */
 
 /* Output a block of characters with common attributes */
 
-static int _new_packet(chtype attr, int len, int col, int row,
+static int _new_packet(const chtype attr, const int len, const int col, const int row,
 #ifdef PDC_WIDE
-                       XChar2b *text)
+                       const XChar2b *text)
 #else
-                       char *text)
+                       const char *text)
 #endif
 {
     XRectangle bounds;
     GC gc;
     int xpos, ypos;
-    int fore, back;
+    PACKED_RGB fore_rgb, back_rgb;
     attr_t sysattrs;
-    bool rev;
 
-    extended_pair_content(PAIR_NUMBER(attr), &fore, &back);
+    PDC_get_rgb_values( attr, &fore_rgb, &back_rgb);
+    fore_rgb = reverse_bytes( fore_rgb);
+    back_rgb = reverse_bytes( back_rgb);
 
     /* Specify the color table offsets */
 
     sysattrs = SP->termattrs;
-
-    if ((attr & A_BOLD) && !(sysattrs & A_BOLD))
-        fore |= 8;
-    if ((attr & A_BLINK) && !(sysattrs & A_BLINK))
-        back |= 8;
-
-    rev = !!(attr & A_REVERSE);
 
     /* Determine which GC to use - normal, italic or bold */
 
@@ -281,7 +278,7 @@ static int _new_packet(chtype attr, int len, int col, int row,
 
     if (pdc_blinked_off && (sysattrs & A_BLINK) && (attr & A_BLINK))
     {
-        XSetForeground(XCURSESDISPLAY, gc, pdc_color[rev ? fore : back]);
+        XSetForeground(XCURSESDISPLAY, gc, (Pixel)fore_rgb);
         XFillRectangle(XCURSESDISPLAY, XCURSESWIN, gc, xpos, bounds.y,
                        bounds.width, pdc_fheight);
     }
@@ -289,8 +286,8 @@ static int _new_packet(chtype attr, int len, int col, int row,
     {
         /* Draw it */
 
-        XSetForeground(XCURSESDISPLAY, gc, pdc_color[rev ? back : fore]);
-        XSetBackground(XCURSESDISPLAY, gc, pdc_color[rev ? fore : back]);
+        XSetForeground(XCURSESDISPLAY, gc, (Pixel)fore_rgb);
+        XSetBackground(XCURSESDISPLAY, gc, (Pixel)back_rgb);
 
 #ifdef PDC_WIDE
         XDrawImageString16(
@@ -301,16 +298,26 @@ static int _new_packet(chtype attr, int len, int col, int row,
 
         /* Underline, etc. */
 
-        if (attr & (A_LEFT | A_RIGHT | A_UNDERLINE))
+        if (attr & (A_LEFT | A_RIGHT | A_UNDERLINE | A_OVERLINE | A_STRIKEOUT))
         {
             int k;
+            const int xend = xpos + pdc_fwidth * len;
 
             if (SP->line_color != -1)
-                XSetForeground(XCURSESDISPLAY, gc, pdc_color[SP->line_color]);
+                XSetForeground(XCURSESDISPLAY, gc, PDC_get_pixel( SP->line_color));
 
             if (attr & A_UNDERLINE)
                 XDrawLine(XCURSESDISPLAY, XCURSESWIN, gc,
-                          xpos, ypos + 1, xpos + pdc_fwidth * len, ypos + 1);
+                          xpos, ypos + 1, xend, ypos + 1);
+
+            if (attr & A_OVERLINE)
+                XDrawLine(XCURSESDISPLAY, XCURSESWIN, gc,
+                          xpos, ypos - pdc_fascent, xend,  ypos - pdc_fascent);
+
+            if (attr & A_STRIKEOUT)
+                XDrawLine(XCURSESDISPLAY, XCURSESWIN, gc,
+                          xpos, ypos - pdc_fascent / 2, xend,
+                                ypos - pdc_fascent / 2);
 
             if (attr & A_LEFT)
                 for (k = 0; k < len; k++)
@@ -331,20 +338,22 @@ static int _new_packet(chtype attr, int len, int col, int row,
     }
 
     PDC_LOG(("_new_packet() - row: %d col: %d "
-             "num_cols: %d fore: %d back: %d text:<%s>\n",
-             row, col, len, fore, back, text));
+             "num_cols: %d fore: %x back: %x text:<%s>\n",
+             row, col, len, fore_rgb, back_rgb, text));
 
     return OK;
 }
 
 /* The core display routine -- update one line of text */
 
+#define MAX_PACKET_SIZE 128
+
 void PDC_transform_line(int lineno, int x, int len, const chtype *srcp)
 {
 #ifdef PDC_WIDE
-    XChar2b text[513];
+    XChar2b text[MAX_PACKET_SIZE];
 #else
-    char text[513];
+    char text[MAX_PACKET_SIZE];
 #endif
     chtype old_attr, attr;
     int i, j;
@@ -378,7 +387,7 @@ void PDC_transform_line(int lineno, int x, int len, const chtype *srcp)
             attr ^= A_REVERSE;
         }
 #endif
-        if (attr != old_attr)
+        if (attr != old_attr || i == MAX_PACKET_SIZE - 1)
         {
             if (_new_packet(old_attr, i, x, lineno, text) == ERR)
                 return;

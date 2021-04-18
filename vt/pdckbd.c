@@ -9,6 +9,7 @@
    #include <unistd.h>
 #endif
 #include "curspriv.h"
+#include "pdcvt.h"
 
 #if defined( __BORLANDC__) || defined( DOS)
    #define WINDOWS_VERSION_OF_KBHIT kbhit
@@ -111,6 +112,7 @@ static int xlate_vt_codes_for_dos( const int key1, const int key2)
       0, 0 };
    int i, rval = 0;
 
+   INTENTIONALLY_UNUSED_PARAMETER( key1);
    for( i = 0; tbl[i] && !rval; i += 2)
       if( key2 == tbl[i + 1])
          rval = tbl[i];
@@ -277,7 +279,7 @@ static int xlate_vt_codes( const int *c, const int count)
    if( count >= 2)
       for( i = 0; rval == -1 && i < n_keycodes; i++)
          {
-         size_t j = 0;
+         int j = 0;
 
          while( j < count && xlates[i].xlation[j]
                                && xlates[i].xlation[j] == c[j])
@@ -352,7 +354,7 @@ int PDC_get_key( void)
                }
             else                 /* SGR mouse encoding */
                {
-               int n_fields, n_bytes, i;
+               int n_fields, n_bytes;
                char tbuff[MAX_COUNT];
 
                assert( c[1] == '<');
@@ -497,8 +499,6 @@ sort of filtering at a higher level for a reason.  */
 
 int PDC_mouse_set( void)
 {
-   extern bool PDC_is_ansi;
-
    if( !PDC_is_ansi)
       {
       static int curr_tracking_state = -1;
@@ -512,10 +512,18 @@ int PDC_mouse_set( void)
          tracking_state = (SP->_trap_mbe ? 1000 : 0);
       if( curr_tracking_state != tracking_state)
          {
+         char tbuff[80];
+
          if( curr_tracking_state > 0)
-            printf( "\033[?%dl", curr_tracking_state);
+            {
+            snprintf( tbuff, sizeof( tbuff), "\033[?%dl", curr_tracking_state);
+            PDC_puts_to_stdout( tbuff);
+            }
          if( tracking_state)
-            printf( "\033[?%dh", tracking_state);
+            {
+            snprintf( tbuff, sizeof( tbuff), "\033[?%dh", tracking_state);
+            PDC_puts_to_stdout( tbuff);
+            }
          curr_tracking_state = tracking_state;
          PDC_doupdate( );
          }
@@ -525,5 +533,6 @@ int PDC_mouse_set( void)
 
 void PDC_set_keyboard_binary( bool on)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( on);
    return;
 }

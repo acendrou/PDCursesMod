@@ -346,7 +346,8 @@ int PDC_scr_open(void)
     SP->mouse_wait = PDC_CLICK_PERIOD;
     SP->audible = FALSE;
 
-    SP->termattrs = A_COLOR | A_UNDERLINE | A_LEFT | A_RIGHT | A_REVERSE;
+    SP->termattrs = A_COLOR | A_UNDERLINE | A_LEFT | A_RIGHT | A_REVERSE
+                            | A_OVERLINE | A_STRIKEOUT;
 #ifdef PDC_WIDE
     SP->termattrs |= A_ITALIC;
 #endif
@@ -415,10 +416,12 @@ void PDC_reset_shell_mode(void)
 
 void PDC_restore_screen_mode(int i)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( i);
 }
 
 void PDC_save_screen_mode(int i)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( i);
 }
 
 bool PDC_can_change_color(void)
@@ -454,6 +457,10 @@ versions of this function for details. */
 void PDC_set_resize_limits( const int new_min_lines, const int new_max_lines,
                   const int new_min_cols, const int new_max_cols)
 {
+   INTENTIONALLY_UNUSED_PARAMETER( new_min_lines);
+   INTENTIONALLY_UNUSED_PARAMETER( new_max_lines);
+   INTENTIONALLY_UNUSED_PARAMETER( new_min_cols);
+   INTENTIONALLY_UNUSED_PARAMETER( new_max_cols);
 }
 
 /* PDC_set_function_key() does nothing on this platform */

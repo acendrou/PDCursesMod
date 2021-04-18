@@ -16,9 +16,9 @@ SFLAGS		= $(shell sdl-config --cflags)
 SLIBS		= $(shell sdl-config --libs)
 
 ifeq ($(DEBUG),Y)
-	CFLAGS  = -g -Wall -DPDCDEBUG -fPIC
+	CFLAGS  = -g -Wall -Wextra -Werror -pedantic -DPDCDEBUG -fPIC
 else
-	CFLAGS  = -O2 -Wall -fPIC
+	CFLAGS  = -O2 -Wall -Wextra -Werror -pedantic -fPIC
 endif
 
 ifeq ($(WIDE),Y)
@@ -30,12 +30,17 @@ ifeq ($(UTF8),Y)
 	CFLAGS	+= -DPDC_FORCE_UTF8
 endif
 
+ifdef CHTYPE_32
+	CFLAGS += -DCHTYPE_32
+endif
+
 BUILD		= $(CC) $(CFLAGS) -I$(PDCURSES_SRCDIR)
 
 LINK		= $(CC)
 LDFLAGS		= $(LIBCURSES) $(SLIBS)
 RANLIB		= ranlib
 LIBCURSES	= pdcurses.a
+LIBCURSES_SO	= pdcurses.so
 
 DEMOS		+= sdltest
 
@@ -43,10 +48,10 @@ DEMOS		+= sdltest
 
 all:	libs
 
-libs:	$(LIBCURSES)
+libs:	$(LIBCURSES) $(LIBCURSES_SO)
 
 clean:
-	-rm -rf *.o trace $(LIBCURSES) $(DEMOS)
+	-rm -rf *.o trace $(LIBCURSES) $(LIBCURSES_SO) $(DEMOS)
 
 demos:	$(DEMOS)
 ifneq ($(DEBUG),Y)
@@ -56,6 +61,9 @@ endif
 $(LIBCURSES) : $(LIBOBJS) $(PDCOBJS)
 	ar rv $@ $?
 	-$(RANLIB) $@
+
+$(LIBCURSES_SO) : $(LIBOBJS) $(PDCOBJS)
+	$(CC) -shared -o $@ $? $(SLIBS)
 
 $(LIBOBJS) $(PDCOBJS) : $(PDCURSES_HEADERS)
 $(PDCOBJS) : $(PDCURSES_SDL_H)
